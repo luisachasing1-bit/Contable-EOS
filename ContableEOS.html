@@ -1,0 +1,581 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ContableEOS — App Contable</title>
+  <meta name="theme-color" content="#1E3A8A">
+  <link rel="manifest" href="manifest.json">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#f7f8fb; --panel:#ffffff; --border:#e6e9ef; --text:#0f172a; --muted:#6b7280; --blue:#1E3A8A; --danger:#ef4444; }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Inter',system-ui,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text)}
+    header{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:12px 16px;z-index:50}
+    .brand-logo{width:36px;height:36px;border-radius:10px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:800}
+    .toolbar .btn{margin-left:6px}
+    .container{display:grid;grid-template-columns:1fr;min-height:calc(100vh - 56px)}
+    main{padding:14px 14px 80px 14px}
+    .cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px}
+    .card h3{margin:0;color:var(--muted);font-size:12px;text-transform:uppercase}
+    .value{font-size:20px;font-weight:800;margin-top:6px}
+    .section{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;margin:12px 0}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input,select{width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:white}
+    table{width:100%;border-collapse:collapse;display:block;overflow-x:auto;white-space:nowrap}
+    th,td{padding:8px;border-bottom:1px solid var(--border);text-align:left}
+    th{font-size:12px;color:var(--muted);text-transform:uppercase}
+    .right{text-align:right}
+    .btn{border:1px solid var(--border);background:var(--panel);padding:8px 12px;border-radius:10px;cursor:pointer}
+    .btn.primary{background:var(--blue);color:#fff;border-color:transparent}
+    .btn.danger{background:var(--danger);color:#fff;border-color:transparent}
+    .hidden{display:none}
+    .bottom-nav{position:fixed;left:0;right:0;bottom:0;height:60px;background:var(--panel);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(6,1fr);z-index:60}
+    .bottom-nav a{text-decoration:none;color:#6b7280;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px}
+    .bottom-nav a.active{color:var(--blue);font-weight:700}
+    @media(min-width:900px){ .container{grid-template-columns:240px 1fr} aside{background:var(--panel);border-right:1px solid var(--border);padding:14px} .cards{grid-template-columns:repeat(4,1fr)} .bottom-nav{display:none} }
+    nav#sidenav a{display:block;padding:8px 12px;border-radius:8px;color:#111;text-decoration:none}
+    nav#sidenav a.active{background:#eef2ff;color:#1d4ed8}
+  </style>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="brand-logo">EOS</div>
+    <strong>ContableEOS</strong>
+  </div>
+  <div class="toolbar">
+    <button class="btn" id="backupBtn">Respaldo</button>
+    <button class="btn" id="restoreBtn">Restaurar</button>
+    <button class="btn" id="exportLedgerBtn">Diario CSV</button>
+    <button class="btn danger" id="resetBtn">Vaciar</button>
+  </div>
+</header>
+
+<div class="container">
+  <aside>
+    <nav id="sidenav">
+      <a href="#dashboard" class="active">📊 Dashboard</a>
+      <a href="#sales">💵 Ventas</a>
+      <a href="#expenses">🧾 Gastos</a>
+      <a href="#bank">🏦 Banco</a>
+      <a href="#reports">📈 Reportes</a>
+      <a href="#settings">⚙️ Configuración</a>
+      <a href="#catalog">📚 Catálogo</a>
+    </nav>
+  </aside>
+  <main>
+    <section id="dashboard" class="view">
+      <div class="cards">
+        <div class="card"><h3>Ingresos</h3><div class="value" id="statIncome">$0.00</div></div>
+        <div class="card"><h3>Gastos</h3><div class="value" id="statExpense">$0.00</div></div>
+        <div class="card"><h3>Utilidad</h3><div class="value" id="statProfit">$0.00</div></div>
+        <div class="card"><h3>Saldo Banco</h3><div class="value" id="statBank">$0.00</div></div>
+      </div>
+      <div class="section">
+        <div><label>Rango</label><div style="display:flex;gap:8px"><input type="date" id="dashFrom"><input type="date" id="dashTo"><button class="btn" id="dashRun">Filtrar</button></div></div>
+        <h3 style="margin-top:12px">Movimientos recientes</h3>
+        <table><thead><tr><th>Fecha</th><th>Fuente</th><th>Detalle</th><th class="right">Débito</th><th class="right">Crédito</th></tr></thead><tbody id="recentTbody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="sales" class="view hidden">
+      <div class="section">
+        <h2>Nueva factura</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label>Fecha</label><input type="date" id="invDate"></div>
+          <div><label>Cliente</label><select id="invCustomer"></select></div>
+          <div style="grid-column:1/-1"><label>Concepto</label><input id="invMemo"></div>
+        </div>
+        <table id="invLinesTbl" style="margin-top:10px"><thead><tr><th>Descripción</th><th>Cant</th><th>Precio</th><th>Cuenta ingreso</th><th class="right">Importe</th><th></th></tr></thead><tbody></tbody></table>
+        <div style="margin-top:8px"><button class="btn" id="addInvLine">+ Línea</button></div>
+        <div class="right" style="margin-top:8px">Subtotal: <span id="invSubtotal">$0.00</span> · IVA: <span id="invVat">$0.00</span> · Total: <strong id="invTotal">$0.00</strong></div>
+        <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:8px"><button class="btn primary" id="saveInvoice">Guardar</button></div>
+      </div>
+      <div class="section">
+        <div><input id="invSearch" placeholder="Buscar (# o cliente)"><button class="btn" id="invSearchBtn">Buscar</button></div>
+        <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th class="right">Total</th><th class="right">Acciones</th></tr></thead><tbody id="invoicesTbody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="expenses" class="view hidden">
+      <div class="section">
+        <h2>Nuevo gasto / CxP</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label>Fecha</label><input type="date" id="billDate"></div>
+          <div><label>Proveedor</label><select id="billVendor"></select></div>
+          <div style="grid-column:1/-1"><label>Concepto</label><input id="billMemo"></div>
+        </div>
+        <table id="billLinesTbl" style="margin-top:10px"><thead><tr><th>Descripción</th><th>Cuenta gasto</th><th class="right">Importe</th><th></th></tr></thead><tbody></tbody></table>
+        <div style="margin-top:8px"><button class="btn" id="addBillLine">+ Línea</button></div>
+        <div class="right" style="margin-top:8px">Total: <strong id="billTotal">$0.00</strong></div>
+        <div style="margin-top:10px;display:flex;justify-content:flex-end;gap:8px"><button class="btn primary" id="saveBill">Guardar</button></div>
+      </div>
+      <div class="section">
+        <h3>Cuentas por pagar</h3>
+        <table><thead><tr><th>#</th><th>Fecha</th><th>Proveedor</th><th class="right">Total</th><th class="right">Acciones</th></tr></thead><tbody id="billsTbody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="bank" class="view hidden">
+      <div class="section">
+        <h2>Banco & Caja</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><label>Cuenta</label><select id="bankAccount"></select></div>
+          <div><label>Fecha</label><input type="date" id="bankDate"></div>
+          <div><label>Tipo</label><select id="bankType"><option>DEPÓSITO</option><option>RETIRO</option></select></div>
+          <div><label>Importe</label><input id="bankAmount" type="number" step="0.01" min="0"></div>
+          <div style="grid-column:1/-1"><label>Detalle</label><input id="bankMemo"></div>
+        </div>
+        <div style="margin-top:8px;display:flex;justify-content:flex-end"><button class="btn primary" id="addBankTxn">Registrar</button></div>
+      </div>
+      <div class="section">
+        <h3>Movimientos</h3>
+        <table><thead><tr><th>Fecha</th><th>Detalle</th><th class="right">Débito</th><th class="right">Crédito</th><th class="right">Saldo</th></tr></thead><tbody id="bankTbody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="reports" class="view hidden">
+      <div class="section">
+        <h2>Estado de Resultados</h2>
+        <div style="display:flex;gap:8px"><input type="date" id="plFrom"><input type="date" id="plTo"><button class="btn" id="runPL">Calcular</button></div>
+        <table style="margin-top:8px"><thead><tr><th>Cuenta</th><th class="right">Importe</th></tr></thead><tbody id="plTbody"></tbody></table>
+        <div class="right" style="margin-top:8px">Utilidad: <strong id="plNet">$0.00</strong></div>
+      </div>
+      <div class="section">
+        <h2>Balance General</h2>
+        <div style="display:flex;gap:8px"><input type="date" id="bsAsOf"><button class="btn" id="runBS">Calcular</button></div>
+        <h4>Activos</h4><table><tbody id="bsAssets"></tbody></table>
+        <h4>Pasivos</h4><table><tbody id="bsLiab"></tbody></table>
+        <h4>Patrimonio</h4><table><tbody id="bsEquity"></tbody></table>
+      </div>
+    </section>
+
+    <section id="settings" class="view hidden">
+      <div class="section">
+        <h2>Configuración</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="grid-column:1/-1"><label>Nombre empresa</label><input id="orgName"></div>
+          <div><label>Moneda</label><select id="currency"><option>USD</option><option>EUR</option><option>PEN</option><option>MXN</option></select></div>
+          <div><label>IVA (%)</label><input id="vatRate" type="number" min="0" step="0.01"></div>
+          <div><label>Prefijo facturas</label><input id="seqInvPrefix"></div>
+          <div><label>Próx. # factura</label><input id="seqInvNum" type="number" min="1"></div>
+          <div><label>Próx. # CxP</label><input id="seqBillNum" type="number" min="1"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Catálogo</h2>
+        <div>
+          <h3>Plan de cuentas</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <input id="accNum" placeholder="Número">
+            <input id="accName" placeholder="Nombre">
+            <select id="accType"><option>Activo</option><option>Pasivo</option><option>Patrimonio</option><option>Ingreso</option><option>Gasto</option></select>
+          </div>
+          <div style="margin-top:8px"><button class="btn" id="addAccount">Agregar cuenta</button></div>
+          <table style="margin-top:8px"><thead><tr><th>#</th><th>Nombre</th><th>Tipo</th><th class="right">Acciones</th></tr></thead><tbody id="accountsTbody"></tbody></table>
+        </div>
+        <div style="margin-top:16px">
+          <h3>Clientes</h3>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+            <input id="custName" placeholder="Nombre cliente"><button class="btn" id="addCustomer">Agregar</button>
+          </div>
+          <table style="margin-top:8px"><thead><tr><th>Nombre</th><th class="right">Acciones</th></tr></thead><tbody id="customersTbody"></tbody></table>
+        </div>
+        <div style="margin-top:16px">
+          <h3>Proveedores</h3>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+            <input id="vendName" placeholder="Nombre proveedor"><button class="btn" id="addVendor">Agregar</button>
+          </div>
+          <table style="margin-top:8px"><thead><tr><th>Nombre</th><th class="right">Acciones</th></tr></thead><tbody id="vendorsTbody"></tbody></table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="bottom-nav" id="bottomNav">
+  <a href="#dashboard" class="active">🏠<span>Inicio</span></a>
+  <a href="#sales">💵<span>Ventas</span></a>
+  <a href="#expenses">🧾<span>Gastos</span></a>
+  <a href="#bank">🏦<span>Banco</span></a>
+  <a href="#reports">📊<span>Reportes</span></a>
+  <a href="#settings">⚙️<span>Ajustes</span></a>
+</nav>
+
+<script>
+(function(){
+  const $ = (s,c=document)=>c.querySelector(s);
+  const $$ = (s,c=document)=>Array.from(c.querySelectorAll(s));
+  const KEY='ContableEOS.v1';
+  const uuid = ()=> crypto.randomUUID?.() || (Date.now()+Math.random()).toString(36);
+  let state = load() || {
+    org:{name:'Mi Empresa',currency:'USD',vat:12,seq:{prefix:'F-',inv:1,bill:1}},
+    accounts:[], customers:[], vendors:[], invoices:[], bills:[], ledger:[]
+  };
+  function persist(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+  function load(){ try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null} }
+  function fmt(n){ return new Intl.NumberFormat('es-EC',{style:'currency',currency:state.org.currency||'USD'}).format(+n||0); }
+  function today(){ return new Date().toISOString().slice(0,10); }
+
+  function addAccount(number,name,type){ const id=uuid(); state.accounts.push({id,number:String(number),name,type}); persist(); return id; }
+  function ensureDefaults(){
+    const by=(num,name,type)=> !state.accounts.find(a=>a.number==num && a.name===name);
+    if(by('1010','Banco','Activo')) addAccount('1010','Banco','Activo');
+    if(by('1000','Caja','Activo')) addAccount('1000','Caja','Activo');
+    if(by('1100','Cuentas por cobrar','Activo')) addAccount('1100','Cuentas por cobrar','Activo');
+    if(by('1190','IVA crédito fiscal','Activo')) addAccount('1190','IVA crédito fiscal','Activo');
+    if(by('2000','Cuentas por pagar','Pasivo')) addAccount('2000','Cuentas por pagar','Pasivo');
+    if(by('2190','IVA débito fiscal','Pasivo')) addAccount('2190','IVA débito fiscal','Pasivo');
+    if(by('3000','Patrimonio','Patrimonio')) addAccount('3000','Patrimonio','Patrimonio');
+    if(by('4000','Ingresos por ventas','Ingreso')) addAccount('4000','Ingresos por ventas','Ingreso');
+    if(by('5000','Gastos generales','Gasto')) addAccount('5000','Gastos generales','Gasto');
+  }
+  ensureDefaults();
+  function getAccount(id){ return state.accounts.find(a=>a.id===id); }
+  function findAccByName(name){ return state.accounts.find(a=>a.name===name); }
+  function post(date,memo,source,lines){ state.ledger.push({id:uuid(),date,memo,source,lines}); persist(); }
+  function deleteBySource(source){ state.ledger = state.ledger.filter(e=>e.source!==source); persist(); }
+  function accountBalance(accId,asOf){
+    let bal=0; const acc=getAccount(accId); if(!acc) return 0;
+    const debitNormal = (acc.type==='Activo'||acc.type==='Gasto');
+    state.ledger.filter(e=>!asOf || e.date<=asOf).forEach(e=> {
+      e.lines.filter(l=>l.accId===accId).forEach(l=>{ bal += debitNormal ? (l.debit||0)-(l.credit||0) : (l.credit||0)-(l.debit||0); });
+    });
+    return bal;
+  }
+
+  function setActive(hash){
+    if(!hash) hash = '#dashboard';
+    $$('#sidenav a').forEach(a=>a.classList.toggle('active', a.getAttribute('href')===hash));
+    $$('#bottomNav a').forEach(a=>a.classList.toggle('active', a.getAttribute('href')===hash));
+    $$('.view').forEach(v=>v.classList.add('hidden'));
+    const id = hash.replace('#','');
+    const view = $('#'+id); if(view) view.classList.remove('hidden');
+    if(id==='dashboard') renderDashboard();
+    if(id==='sales') renderSales();
+    if(id==='expenses') renderExpenses();
+    if(id==='bank') renderBank();
+    if(id==='reports') { /* noop */ }
+    if(id==='settings') renderSettings();
+  }
+  window.addEventListener('hashchange', ()=> setActive(location.hash));
+  setActive(location.hash || '#dashboard');
+
+  // Dashboard
+  $('#dashRun').onclick = renderDashboard;
+  function renderDashboard(){
+    const from = $('#dashFrom')?.value || '0000-01-01';
+    const to = $('#dashTo')?.value || '9999-12-31';
+    let income=0, expense=0;
+    state.ledger.filter(e=>e.date>=from && e.date<=to).forEach(e=>{
+      e.lines.forEach(l=>{
+        const acc=getAccount(l.accId); if(!acc) return;
+        if(acc.type==='Ingreso') income += (l.credit||0)-(l.debit||0);
+        if(acc.type==='Gasto') expense += (l.debit||0)-(l.credit||0);
+      });
+    });
+    $('#statIncome').textContent = fmt(income);
+    $('#statExpense').textContent = fmt(expense);
+    $('#statProfit').textContent  = fmt(income-expense);
+    const bankAcc = findAccByName('Banco');
+    $('#statBank').textContent = bankAcc ? fmt(accountBalance(bankAcc.id)) : fmt(0);
+
+    const recent = state.ledger.filter(e=>e.date>=from && e.date<=to).slice(-50).reverse();
+    $('#recentTbody').innerHTML = recent.map(e=>{
+      const deb=e.lines.reduce((s,l)=>s+(l.debit||0),0);
+      const cre=e.lines.reduce((s,l)=>s+(l.credit||0),0);
+      return `<tr><td>${e.date}</td><td>${e.source||''}</td><td>${e.memo||''}</td><td class="right">${fmt(deb)}</td><td class="right">${fmt(cre)}</td></tr>`;
+    }).join('');
+  }
+
+  // Sales
+  function renderSales(){
+    $('#invCustomer').innerHTML = state.customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    const incAcc = state.accounts.filter(a=>a.type==='Ingreso');
+    const tbody = $('#invLinesTbl tbody'); tbody.innerHTML=''; addInvLine();
+    $('#invDate').value = today();
+    $('#addInvLine').onclick = addInvLine;
+    $('#saveInvoice').onclick = saveInvoice;
+    $('#invSearchBtn').onclick = ()=> renderInvoicesList($('#invSearch').value.trim());
+    renderInvoicesList();
+
+    function addInvLine(){
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td><input placeholder="Descripción"></td>
+        <td><input type="number" min="0" step="0.01" value="1"></td>
+        <td><input type="number" min="0" step="0.01" value="0"></td>
+        <td><select>${incAcc.map(a=>`<option value="${a.id}">${a.number} - ${a.name}</option>`).join('')}</select></td>
+        <td class="right">$0.00</td>
+        <td><button class="btn danger">×</button></td>`;
+      tbody.appendChild(tr);
+      const [desc,qty,price,accSel] = tr.querySelectorAll('input,select');
+      const amtCell = tr.children[4];
+      function recalc(){
+        const amt=(+qty.value||0)*(+price.value||0); amtCell.textContent = fmt(amt); calcTotals();
+      }
+      qty.oninput=price.oninput=recalc; recalc();
+      tr.querySelector('button').onclick=()=>{ tr.remove(); calcTotals(); };
+    }
+
+    function calcTotals(){
+      let sub=0; $$('#invLinesTbl tbody tr').forEach(tr=> sub += +(tr.children[4].textContent.replace(/[^0-9.-]/g,'')||0));
+      const vat = (state.org.vat||0)/100*sub;
+      $('#invSubtotal').textContent=fmt(sub);
+      $('#invVat').textContent=fmt(vat);
+      $('#invTotal').textContent=fmt(sub+vat);
+      return {sub,vat,total:sub+vat};
+    }
+
+    function saveInvoice(){
+      const date=$('#invDate').value||today();
+      const customerId=$('#invCustomer').value||null;
+      const memo=$('#invMemo').value||'';
+      let number = (state.org.seq?.prefix||'F-') + (state.org.seq?.inv||1);
+      state.org.seq.inv = (state.org.seq?.inv||1)+1;
+
+      const lines=[];
+      $$('#invLinesTbl tbody tr').forEach(tr=>{
+        const [desc,qty,price,accSel]=tr.querySelectorAll('input,select');
+        const amount=(+qty.value||0)*(+price.value||0);
+        if(amount>0) lines.push({desc:desc.value,qty:+qty.value,price:+price.value,accId:accSel.value,amount});
+      });
+      const totals = calcTotals();
+      const id=uuid();
+      state.invoices.push({id,number,date,customerId,memo,lines,subtotal:totals.sub,vat:totals.vat,total:totals.total,status:'Pendiente'});
+
+      const ar = findAccByName('Cuentas por cobrar') || findAccByName('Banco');
+      const vatAcc = findAccByName('IVA débito fiscal');
+      const entries=[];
+      entries.push({accId:ar.id,debit:totals.total,credit:0,contactId:customerId});
+      lines.forEach(l=> entries.push({accId:l.accId,debit:0,credit:l.amount,contactId:customerId}));
+      if(totals.vat>0 && vatAcc) entries.push({accId:vatAcc.id,debit:0,credit:totals.vat,contactId:customerId});
+      post(date,memo||('Factura '+number),'INV-'+id,entries);
+      persist(); renderInvoicesList(); renderDashboard(); alert('Factura guardada');
+    }
+
+    function renderInvoicesList(filter=''){
+      $('#invoicesTbody').innerHTML = state.invoices.filter(f=> !filter || f.number.includes(filter) || findContactName(f.customerId).toLowerCase().includes(filter.toLowerCase())).map(f=>`<tr><td>${f.number}</td><td>${f.date}</td><td>${findContactName(f.customerId)} </td><td class="right">${fmt(f.total)}</td><td class="right"><button class="btn" onclick="receivePayment('${f.id}')">Cobrar</button> <button class="btn" onclick="printInvoice('${f.id}')">Impr.</button> <button class="btn danger" onclick="deleteInvoice('${f.id}')">Borrar</button></td></tr>`).join('');
+    }
+  }
+
+  window.receivePayment = function(invId){
+    const inv=state.invoices.find(i=>i.id===invId);
+    if(!inv) return alert('Factura no encontrada');
+    if(inv.status==='Pagada') return alert('Factura ya pagada');
+    const bank = findAccByName('Banco');
+    const ar = findAccByName('Cuentas por cobrar');
+    if(!bank) return alert('Crea una cuenta Banco en Catálogo');
+    post(today(),'Cobro factura','COBRO-'+invId,[
+      {accId:bank.id,debit:inv.total,credit:0,contactId:inv.customerId},
+      {accId:ar.id,debit:0,credit:inv.total,contactId:inv.customerId}
+    ]);
+    inv.status='Pagada'; persist(); 
+    try{ renderBank(); }catch(e){} 
+    try{ renderDashboard(); }catch(e){}
+  }
+  window.printInvoice = function(invId){
+    const inv=state.invoices.find(i=>i.id===invId); if(!inv) return;
+    const w=window.open('','_blank');
+    w.document.write(`<html><head><title>Factura ${inv.number}</title><style>body{font-family:Inter,Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #eee}.right{text-align:right}</style></head><body>`);
+    w.document.write(`<h2>${state.org.name}</h2><p>Factura: ${inv.number}<br>Fecha: ${inv.date}</p>`);
+    w.document.write('<table><thead><tr><th>Desc</th><th class="right">Cant</th><th class="right">Precio</th><th class="right">Importe</th></tr></thead><tbody>');
+    inv.lines.forEach(l=> w.document.write(`<tr><td>${l.desc}</td><td class="right">${l.qty}</td><td class="right">${fmt(l.price)}</td><td class="right">${fmt(l.amount)}</td></tr>`));
+    w.document.write(`</tbody></table><p class="right">Subtotal: ${fmt(inv.subtotal)}<br>IVA: ${fmt(inv.vat)}<br><strong>Total: ${fmt(inv.total)}</strong></p>`);
+    w.document.write('</body></html>'); w.document.close(); w.print();
+  }
+  window.deleteInvoice = function(invId){
+    if(!confirm('Eliminar factura y asientos?')) return;
+    state.invoices = state.invoices.filter(i=>i.id!==invId);
+    deleteBySource('INV-'+invId); deleteBySource('COBRO-'+invId);
+    persist(); try{ renderDashboard(); }catch(e){}
+  }
+
+  // Expenses
+  function renderExpenses(){
+    $('#billVendor').innerHTML = state.vendors.map(v=>`<option value="${v.id}">${v.name}</option>`).join('');
+    const expAcc = state.accounts.filter(a=>a.type==='Gasto');
+    const tbody = $('#billLinesTbl tbody'); tbody.innerHTML=''; addBillLine();
+    $('#addBillLine').onclick = addBillLine; $('#saveBill').onclick = saveBill;
+
+    function addBillLine(){
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td><input></td>
+        <td><select>${expAcc.map(a=>`<option value="${a.id}">${a.number} - ${a.name}</option>`).join('')}</select></td>
+        <td class="right"><input type="number" min="0" step="0.01" value="0"></td>
+        <td><button class="btn danger">×</button></td>`;
+      tbody.appendChild(tr);
+      tr.querySelector('input[type=number]').oninput=calcTotals;
+      tr.querySelector('button').onclick=()=>{ tr.remove(); calcTotals(); };
+    }
+    function calcTotals(){
+      let total=0; $$('#billLinesTbl tbody tr').forEach(tr=> total += +(tr.children[2].querySelector('input').value||0));
+      $('#billTotal').textContent = fmt(total); return total;
+    }
+    function saveBill(){
+      const date=$('#billDate').value||today();
+      const vendorId=$('#billVendor').value||null;
+      const memo=$('#billMemo').value||'';
+      let number='B-'+(state.org.seq?.bill||1); state.org.seq.bill=(state.org.seq?.bill||1)+1;
+      const lines=[]; $$('#billLinesTbl tbody tr').forEach(tr=>{
+        const desc=tr.children[0].querySelector('input').value;
+        const accId=tr.children[1].querySelector('select').value;
+        const amt=+(tr.children[2].querySelector('input').value||0);
+        if(amt>0) lines.push({desc,accId,amount:amt});
+      });
+      const total = calcTotals(); const id=uuid();
+      state.bills.push({id,number,date,vendorId,memo,lines,total,status:'Pendiente'});
+
+      const ap = findAccByName('Cuentas por pagar');
+      const vatIn = findAccByName('IVA crédito fiscal');
+      const entries=[]; let debit=0, credit=0;
+      lines.forEach(l=>{ entries.push({accId:l.accId,debit:l.amount,credit:0,contactId:vendorId}); debit+=l.amount; });
+      if(state.org.vat){ const vat = total*state.org.vat/100; if(vatIn){ entries.push({accId:vatIn.id,debit:vat,credit:0,contactId:vendorId}); debit+=vat; } }
+      entries.push({accId:ap.id,debit:0,credit:total,contactId:vendorId}); credit+=total;
+      if(Math.abs(debit-credit)>0.005) return alert('Asiento desbalanceado');
+      post(date,memo||('Factura proveedor '+number),'BILL-'+id,entries);
+      persist(); renderBillsList(); try{ renderDashboard(); }catch(e){} alert('Cuenta por pagar guardada');
+    }
+    function renderBillsList(){
+      $('#billsTbody').innerHTML = state.bills.map(b=>`<tr><td>${b.number}</td><td>${b.date}</td><td>${findContactName(b.vendorId)}</td><td class="right">${fmt(b.total)}</td><td class="right"><button class="btn" onclick="payBill('${b.id}')">Pagar</button> <button class="btn" onclick="printBill('${b.id}')">Impr.</button> <button class="btn danger" onclick="deleteBill('${b.id}')">Borrar</button></td></tr>`).join('');
+    }
+    renderBillsList();
+  }
+
+  window.payBill = function(billId){
+    const bill = state.bills.find(b=>b.id===billId);
+    if(!bill) return alert('No existe');
+    if(bill.status==='Pagada') return alert('Ya pagada');
+    const bank = findAccByName('Banco'); const ap = findAccByName('Cuentas por pagar');
+    if(!bank) return alert('Crea cuenta Banco');
+    post(today(),'Pago a proveedor','PAGO-'+billId,[
+      {accId:ap.id,debit:bill.total,credit:0,contactId:bill.vendorId},
+      {accId:bank.id,debit:0,credit:bill.total,contactId:bill.vendorId}
+    ]);
+    bill.status='Pagada'; persist(); try{ renderBank(); }catch(e){} try{ renderDashboard(); }catch(e){}
+  }
+  window.printBill = function(billId){
+    const b = state.bills.find(x=>x.id===billId); if(!b) return;
+    const w=window.open('','_blank');
+    w.document.write(`<html><head><title>CxP ${b.number}</title><style>body{font-family:Inter,Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #eee}.right{text-align:right}</style></head><body>`);
+    w.document.write(`<h2>${state.org.name}</h2><p>CxP: ${b.number}<br>Fecha: ${b.date}</p>`);
+    w.document.write('<table><thead><tr><th>Desc</th><th class="right">Importe</th></tr></thead><tbody>');
+    b.lines.forEach(l=> w.document.write(`<tr><td>${l.desc}</td><td class="right">${fmt(l.amount)}</td></tr>`));
+    w.document.write(`</tbody></table><p class="right">Total: ${fmt(b.total)}</p></body></html>`);
+    w.document.close(); w.print();
+  }
+  window.deleteBill = function(billId){
+    if(!confirm('Eliminar CxP y asientos?')) return;
+    state.bills = state.bills.filter(b=>b.id!==billId);
+    deleteBySource('BILL-'+billId); deleteBySource('PAGO-'+billId);
+    persist(); try{ renderDashboard(); }catch(e){}
+  }
+
+  // Bank
+  function renderBank(){
+    $('#bankAccount').innerHTML = state.accounts.filter(a=>a.type==='Activo' && /Banco|Caja/i.test(a.name)).map(a=>`<option value="${a.id}">${a.number} - ${a.name}</option>`).join('');
+    $('#bankDate').value = today();
+    $('#addBankTxn').onclick = ()=>{
+      const accId = $('#bankAccount').value;
+      const date = $('#bankDate').value||today();
+      const type = $('#bankType').value;
+      const memo = $('#bankMemo').value;
+      const amount = +($('#bankAmount').value||0);
+      if(!amount) return alert('Importe inválido');
+      const eq = findAccByName('Patrimonio');
+      if(type==='DEPÓSITO') post(date,memo||'Depósito','BANCO',[{accId, debit:amount, credit:0},{accId:eq.id, debit:0, credit:amount}]);
+      else post(date,memo||'Retiro','BANCO',[{accId, debit:0, credit:amount},{accId:eq.id, debit:amount, credit:0}]);
+      persist(); renderBankTable(); try{ renderDashboard(); }catch(e){}
+    };
+    renderBankTable();
+  }
+  function renderBankTable(){
+    const bankId = $('#bankAccount').value || (state.accounts.find(a=>/Banco|Caja/i.test(a.name))||{}).id;
+    if(!bankId){ $('#bankTbody').innerHTML=''; return; }
+    let running=0;
+    const rows = state.ledger.filter(e=>e.lines.some(l=>l.accId===bankId)).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>{
+      const deb = e.lines.filter(l=>l.accId===bankId).reduce((s,l)=>s+(l.debit||0),0);
+      const cre = e.lines.filter(l=>l.accId===bankId).reduce((s,l)=>s+(l.credit||0),0);
+      running += deb - cre;
+      return `<tr><td>${e.date}</td><td>${e.memo||e.source||''}</td><td class="right">${deb?fmt(deb):''}</td><td class="right">${cre?fmt(cre):''}</td><td class="right">${fmt(running)}</td></tr>`;
+    });
+    $('#bankTbody').innerHTML = rows.join('');
+  }
+
+  // Catalog inside Settings
+  function renderCatalog(){
+    $('#accountsTbody').innerHTML = state.accounts.sort((a,b)=>a.number.localeCompare(b.number)).map(a=>`<tr><td>${a.number}</td><td>${a.name}</td><td>${a.type}</td><td class="right"><button class="btn" onclick="editAccount('${a.id}')">Editar</button> <button class="btn danger" onclick="removeAccount('${a.id}')">Eliminar</button></td></tr>`).join('');
+    $('#addAccount').onclick = ()=>{
+      const num=$('#accNum').value.trim(); const name=$('#accName').value.trim(); const type=$('#accType').value;
+      if(!num||!name) return alert('Completa los campos'); addAccount(num,name,type);
+      $('#accNum').value=''; $('#accName').value=''; renderCatalog();
+    };
+    $('#customersTbody').innerHTML = state.customers.map(c=>`<tr><td>${c.name}</td><td class="right"><button class="btn danger" onclick="deleteCustomer('${c.id}')">Eliminar</button></td></tr>`).join('');
+    $('#vendorsTbody').innerHTML = state.vendors.map(v=>`<tr><td>${v.name}</td><td class="right"><button class="btn danger" onclick="deleteVendor('${v.id}')">Eliminar</button></td></tr>`).join('');
+    $('#addCustomer').onclick = ()=>{ const name=$('#custName').value.trim(); if(!name) return; state.customers.push({id:uuid(),name}); persist(); $('#custName').value=''; renderCatalog(); };
+    $('#addVendor').onclick = ()=>{ const name=$('#vendName').value.trim(); if(!name) return; state.vendors.push({id:uuid(),name}); persist(); $('#vendName').value=''; renderCatalog(); };
+  }
+  window.editAccount = function(id){ const a=getAccount(id); const n=prompt('Nuevo nombre',a.name); if(n){ a.name=n; persist(); renderCatalog(); } }
+  window.removeAccount = function(id){ if(state.ledger.some(e=>e.lines.some(l=>l.accId===id))) return alert('No se puede eliminar: cuenta con movimientos'); state.accounts = state.accounts.filter(a=>a.id!==id); persist(); renderCatalog(); }
+  window.deleteCustomer = function(id){ if(state.invoices.some(i=>i.customerId===id)) return alert('No se puede eliminar: cliente con facturas'); state.customers=state.customers.filter(c=>c.id!==id); persist(); renderCatalog(); }
+  window.deleteVendor = function(id){ if(state.bills.some(b=>b.vendorId===id)) return alert('No se puede eliminar: proveedor con movimientos'); state.vendors=state.vendors.filter(v=>v.id!==id); persist(); renderCatalog(); }
+
+  // Reports
+  $('#runPL').onclick = ()=>{
+    const from=$('#plFrom').value||'0000-01-01'; const to=$('#plTo').value||'9999-12-31';
+    let income=0, expense=0; const rows=[];
+    state.accounts.filter(a=>a.type==='Ingreso'||a.type==='Gasto').forEach(a=>{
+      let bal=0;
+      state.ledger.filter(e=>e.date>=from && e.date<=to).forEach(e=> e.lines.filter(l=>l.accId===a.id).forEach(l=>{
+        if(a.type==='Ingreso') bal += (l.credit||0)-(l.debit||0); else bal += (l.debit||0)-(l.credit||0);
+      }));
+      if(Math.abs(bal)>0.0001){ rows.push(`<tr><td>${a.number} ${a.name}</td><td class="right">${fmt(bal)}</td></tr>`); if(a.type==='Ingreso') income+=bal; else expense+=bal; }
+    });
+    $('#plTbody').innerHTML = rows.join('');
+    $('#plNet').textContent = fmt(income-expense);
+  };
+  $('#runBS').onclick = ()=>{
+    const asOf = $('#bsAsOf').value||today();
+    function list(type,el){
+      const rows=[]; let total=0;
+      state.accounts.filter(a=>a.type===type).forEach(a=>{ const bal = accountBalance(a.id, asOf); if(Math.abs(bal)>0.0001){ rows.push(`<tr><td>${a.number} ${a.name}</td><td class="right">${fmt(bal)}</td></tr>`); total+=bal; } });
+      el.innerHTML = rows.join('') + `<tr><th>Total ${type}</th><th class="right">${fmt(total)}</th></tr>`;
+    }
+    list('Activo',$('#bsAssets')); list('Pasivo',$('#bsLiab')); list('Patrimonio',$('#bsEquity'));
+  };
+
+  // Settings
+  function renderSettings(){
+    $('#orgName').value = state.org.name || '';
+    $('#currency').value = state.org.currency || 'USD';
+    $('#vatRate').value = state.org.vat || 0;
+    $('#seqInvPrefix').value = state.org.seq?.prefix || 'F-';
+    $('#seqInvNum').value = state.org.seq?.inv || 1;
+    $('#seqBillNum').value = state.org.seq?.bill || 1;
+    renderCatalog();
+  }
+  $('#saveOrg')?.addEventListener('click', ()=>{
+    state.org.name = $('#orgName').value || state.org.name;
+    state.org.currency = $('#currency').value || state.org.currency;
+    state.org.vat = +($('#vatRate').value||0);
+    state.org.seq = { prefix: $('#seqInvPrefix').value||'F-', inv: +($('#seqInvNum').value||1), bill: +($('#seqBillNum').value||1) };
+    persist(); ensureDefaults(); alert('Configuración guardada');
+  });
+
+  // Backup / restore / export
+  $('#backupBtn').onclick = ()=>{ const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='contableEOS_backup.json'; a.click(); URL.revokeObjectURL(a.href); };
+  $('#restoreBtn').onclick = ()=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json'; inp.onchange=()=>{ const f=inp.files[0]; const r=new FileReader(); r.onload=()=>{ try{ state=JSON.parse(r.result); persist(); location.reload(); }catch{ alert('Archivo inválido'); } }; r.readAsText(f); }; inp.click(); };
+  $('#exportLedgerBtn').onclick = ()=>{ const rows=[['fecha','fuente','memo','cuenta','numero','tipo','debit','credit','contact']]; state.ledger.forEach(e=> e.lines.forEach(l=>{ const a=getAccount(l.accId)||{}; rows.push([e.date,e.source||'',e.memo||'',a.number?`${a.number} ${a.name}`:'',a.number||'',a.type||'', l.debit||'', l.credit||'', findContactName(l.contactId||'')]); })); const csv = rows.map(r=> r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='libro_diario.csv'; a.click(); };
+  $('#resetBtn').onclick = ()=>{ if(confirm('Vaciar todos los datos?')){ localStorage.removeItem(KEY); location.reload(); } };
+
+  function findContactName(id){ return state.customers.find(c=>c.id===id)?.name || state.vendors.find(v=>v.id===id)?.name || ''; }
+
+  if(!location.hash) location.hash = '#dashboard';
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(console.error); }
+})();
+</script>
+</body>
+</html>
